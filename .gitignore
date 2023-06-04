@@ -21,6 +21,7 @@ sdist/
 var/
 src/discord-token.txt
 src/discord-token-test.txt
+src/ed-fco.zip
 wheels/
 share/python-wheels/
 *.egg-info/

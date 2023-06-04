@@ -120,6 +120,79 @@ def GetSubscriptions(channel):
 
     return subs
 
+def GetCarrierName(id):
+    conn = sqlite3.connect("carriers.db")
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT name FROM carriers WHERE id=\"{id}\" LIMIT 1;")
+    response = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    if len(response) > 0:
+        return response[0][0]
+    else:
+        return None
+
+def GetCarrierID(owner):
+    conn = sqlite3.connect("carriers.db")
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT id FROM carriers WHERE owner=\"{owner}\" LIMIT 1;")
+    response = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    if len(response) > 0:
+        return response[0][0]
+    else:
+        return None
+
+def GetCarrierName(owner):
+    conn = sqlite3.connect("carriers.db")
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT name FROM carriers WHERE owner=\"{owner}\" LIMIT 1;")
+    response = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    if len(response) > 0:
+        return response[0][0]
+    else:
+        return None
+
+def GetCarrierServices(id):
+    conn = sqlite3.connect("carriers.db")
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT * FROM services WHERE id=\"{id}\" LIMIT 1;")
+    response = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    if len(response) > 0:
+        r = response[0]
+        flags = list()
+        for i in r:
+            flags.append(i)
+
+        return flags
+    else:
+        return None
+
+def SetCarrierStatus(id, loc, obj, res):
+    conn = sqlite3.connect("carriers.db")
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT * FROM status_updates WHERE id=\"{id}\" LIMIT 1;")
+    response = cursor.fetchall()
+    if len(response) > 0:
+        cursor.execute(f"UPDATE status_updates SET location=\"{loc}\", objective=\"{obj}\", reserves=\"{res}\" WHERE id=\"{id}\";")
+        cursor.close()
+        conn.commit()
+        conn.close()
+    else:
+        cursor.execute(f"INSERT INTO status_updates (id, location, objective, reserves) VALUES (\"{id}\",\"{loc}\",\"{obj}\",\"{res}\");")
+        cursor.close()
+        conn.commit()
+        conn.close()
+
 class CarrierInfo:
     def __init__(self, id, name, owner, cmdr, subs):
         self.id = id
@@ -140,3 +213,6 @@ class SubInfo:
     @classmethod
     def createData(cls, id, name):
         return cls(id, name)
+    
+
+        
