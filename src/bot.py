@@ -165,8 +165,9 @@ async def ctx_update(ctx, *args):
 
 @bot.command(name="github")
 async def ctx_github(ctx):
-    newEmbed = discord.Embed(title="Fork me on GitHub!", description="Made with <3 by Sebastian.#0083", url="https://github.com/sebbett/ED-FCO")
+    newEmbed = discord.Embed(title="Fork me on GitHub!", description="Made with <3 by Sebastian.#0083", url="https://github.com/sebbett/ED-FCO", color=0x9b59b6)
     newEmbed.set_thumbnail(url="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png")
+    await ctx.send(embed=newEmbed)
 
 
 Setup()
