@@ -67,6 +67,15 @@ def Unsubscribe(id, channel):
     conn.close()
     return 200
 
+def UnsubscribeAll(channel):
+    conn = sqlite3.connect("carriers.db")
+    cursor = conn.cursor()
+    cursor.execute(f"DELETE FROM subscriptions WHERE channel=\"{channel}\";")
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return 200
+
 def GetCarrier(owner):
     id = ""
     name = ""
@@ -95,6 +104,22 @@ def GetCarrier(owner):
     else:
         return 
 
+def GetSubscriptions(channel):
+    subs = list()
+    conn = sqlite3.connect("carriers.db")
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT * FROM subscriptions WHERE channel=\"{channel}\";")
+    rows = cursor.fetchall()
+
+    for r in rows:
+        id = r[1]
+        cursor.execute(f"SELECT * FROM carriers WHERE id=\"{id}\";")
+        name = cursor.fetchone()[2]
+        subs.append(SubInfo.createData(id, name))
+
+
+    return subs
+
 class CarrierInfo:
     def __init__(self, id, name, owner, cmdr, subs):
         self.id = id
@@ -107,4 +132,11 @@ class CarrierInfo:
     def createData(cls, id, name, owner, cmdr, subs):
         return cls(id, name, owner, cmdr, subs)
 
+class SubInfo:
+    def __init__(self, id, name):
+        self.id = id
+        self.name = name
 
+    @classmethod
+    def createData(cls, id, name):
+        return cls(id, name)
