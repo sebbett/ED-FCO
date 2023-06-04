@@ -126,37 +126,41 @@ async def ctx_unsubscribe(ctx, *args):
     else:
         await ctx.send(f"{ctx.author.mention} Incorrect syntax. Please use syntax `fco.unsubscribe SHIP-ID`, for example `fco.unsubscribe JZH-6XY`")
 
-@bot.command(name="update")
-async def ctx_update(ctx, *args):
+@bot.command(name="jump")
+async def ctx_jump(ctx, *args):
     def check(message):
             return message.author == ctx.author and message.channel == ctx.channel
 
     arglist = list(args)
     if ctx.guild is None:
-        if len(args) > 0:
-            if args[0].lower() == "jump":
-                await ctx.send("Where is your carrier jumping?")
-                try:
-                    destination_resp = await bot.wait_for('message', timeout=60.0, check=check)
-                    await ctx.send(f"And what will be the objective once you arrive?")
-                    objective_resp = await bot.wait_for('message', timeout=60.0, check=check)
-                    await ctx.send(f"Copy that, CMDR! I will notify all subscribed parties that your carrier is preparing to jump. Click 'Cancel Jump' to cancel. Otherwise, I will assume the jump is complete in 20 minutes!")
-                    info = botdb.GetCarrier(ctx.author.id)
-                    posts = list()
-                    for channel_id in info.subs:
-                        channel = bot.get_channel(channel_id)
-                        newEmbed = discord.Embed(title=(f"ALERT: {info.id} \"{info.name}\" has scheduled a hyperspace jump"), description="Please conclude any remaining business in the system prior to departure.", color=0x9b59b6)
-                        newEmbed.add_field(name="Destination", value=destination_resp.content, inline=True)
-                        newEmbed.add_field(name="Objective", value=objective_resp.content, inline=True)
-                        newEmbed.set_footer(text=f"This carrier is operated by CMDR {info.cmdr}")
-                        newPost = await channel.send(embed=newEmbed)
-                        posts.append(newPost)
-                except asyncio.TimeoutError:
-                    await ctx.send("Timed out. Please try again.")
-            else:
-                await ctx.send("Bad syntax")
-        else:
-            await ctx.send("Bad syntax")
+        await ctx.send("What system is your carrier jumping to?")
+        try:
+            destination_resp = await bot.wait_for('message', timeout=60.0, check=check)
+            await ctx.send(f"And what will be the objective once you arrive?")
+            objective_resp = await bot.wait_for('message', timeout=60.0, check=check)
+            await ctx.send(f"Copy that, CMDR! I will notify all subscribed parties that your carrier is preparing to jump.\nUse '!cancel' to cancel the jump. Otherwise, I will assume the jump is complete in 20 minutes!")
+            info = botdb.GetCarrier(ctx.author.id)
+            posts = list()
+            for channel_id in info.subs:
+                channel = bot.get_channel(channel_id)
+                newEmbed = discord.Embed(title=(f"ALERT: {info.id} \"{info.name}\" has scheduled a hyperspace jump"), description="Please conclude any remaining business in the system prior to departure.", color=0x9b59b6)
+                newEmbed.add_field(name="Destination", value=destination_resp.content, inline=True)
+                newEmbed.add_field(name="Objective", value=objective_resp.content, inline=True)
+                newEmbed.set_footer(text=f"This carrier is operated by CMDR {info.cmdr}")
+                newPost = await channel.send(embed=newEmbed)
+                posts.append(newPost)
+
+            cancel_resp = await bot.wait_for('message', check=check, timeout=1200.0)
+            if cancel_resp.content.lower() == "!cancel":
+                for p in posts:
+                    newEmbed = discord.Embed(title=(f"ALERT: {info.id} \"{info.name}\" has cancelled a hyperspace jump"), color=0x9b59b6)
+                    newEmbed.set_footer(text=f"This carrier is operated by CMDR {info.cmdr}")
+                    newPost = await p.channel.send(embed=newEmbed)
+                    await p.delete()
+                return                           
+
+        except asyncio.TimeoutError:
+            await ctx.send("Timed out. Please try again.")
 
     else:
         message = await ctx.send(f"{ctx.author.mention}, the command `{bot.command_prefix}register` cannot be used here. DM me to perform this action.")
@@ -168,6 +172,10 @@ async def ctx_github(ctx):
     newEmbed = discord.Embed(title="Fork me on GitHub!", description="Made with <3 by Sebastian.#0083", url="https://github.com/sebbett/ED-FCO", color=0x9b59b6)
     newEmbed.set_thumbnail(url="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png")
     await ctx.send(embed=newEmbed)
+
+@bot.command()
+async def ctx_generic(ctx):
+    print(ctx)
 
 
 Setup()
