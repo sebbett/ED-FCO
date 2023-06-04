@@ -9,6 +9,9 @@ Subscriptions to specific carriers allow you to control what carriers you receiv
 Notify players that your carrier will be jumping and where
 
 To Do:
+
 Detail services currently active on the carrier
+
 Allow for updating on location
+
 Allow for status querying from other players
