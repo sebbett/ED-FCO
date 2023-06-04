@@ -204,12 +204,15 @@ async def ctx_jump(ctx, *args):
             posts = list()
             for channel_id in info.subs:
                 channel = bot.get_channel(channel_id)
-                newEmbed = discord.Embed(title=(f"ALERT: {info.id} \"{info.name}\" has scheduled a hyperspace jump"), description="Please conclude any remaining business in the system prior to departure.", color=0x9b59b6)
-                newEmbed.add_field(name="Destination", value=destination_resp.content, inline=True)
-                newEmbed.add_field(name="Objective", value=objective_resp.content, inline=True)
-                newEmbed.set_footer(text=f"This carrier is operated by CMDR {info.cmdr}")
-                newPost = await channel.send(embed=newEmbed)
-                posts.append(newPost)
+                if channel:
+                    newEmbed = discord.Embed(title=(f"ALERT: {info.id} \"{info.name}\" has scheduled a hyperspace jump"), description="Please conclude any remaining business in the system prior to departure.", color=0x9b59b6)
+                    newEmbed.add_field(name="Destination", value=destination_resp.content, inline=True)
+                    newEmbed.add_field(name="Objective", value=objective_resp.content, inline=True)
+                    newEmbed.set_footer(text=f"This carrier is operated by CMDR {info.cmdr}")
+                    newPost = await channel.send(embed=newEmbed)
+                    posts.append(newPost)
+                else:
+                    botdb.UnsubscribeAll(channel_id)
 
             cancel_resp = await bot.wait_for('message', check=check, timeout=1200.0)
             if cancel_resp.content.lower() == "cancel":
