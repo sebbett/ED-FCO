@@ -76,35 +76,68 @@ def UnsubscribeAll(channel):
     conn.close()
     return 200
 
-def GetCarrier(owner):
-    id = ""
-    name = ""
-    cmdr = ""
-    subs = list()
-    
+def GetCarrierByID(id):
     conn = sqlite3.connect("carriers.db")
     cursor = conn.cursor()
-    cursor.execute(f"SELECT * FROM carriers WHERE owner=\"{owner}\";")
-    rows = cursor.fetchall()
-    if len(rows) > 0:
-        
-        data = rows[0]
-        id = data[1]
-        name = data[2]
-        owner = data[3]
-        cmdr = data[4]
 
-        cursor.execute(f"SELECT * FROM subscriptions WHERE id=\"{id}\" LIMIT 1000;")
-        subs_data = cursor.fetchall()
-        cursor.close()
-        conn.close()
-        for s in subs_data:
-            subs.append(s[2])
-        return CarrierInfo.createData(id, name, owner, cmdr, subs)
+    cursor.execute(f"SELECT * FROM carriers WHERE id=\"{id}\" LIMIT 1;")
+    r = cursor.fetchall()
+    if len(r) > 0:
+        name = r[0][2]
+        owner = r[0][3]
+        cmdr = r[0][4]
+        subs = GetSubscriptionsToCarrier(id)
+        status = GetCarrierStatus(id)
+        vanity = r[0][5]
+
+        cursor.execute
+        r = cursor.fetchall()
+        return CarrierInfo.createData(id, name, owner, cmdr, subs, status, vanity)
     else:
-        return 
+        return None
 
-def GetSubscriptions(channel):
+def GetCarrierByDiscord(discord):
+    conn = sqlite3.connect("carriers.db")
+    cursor = conn.cursor()
+
+    cursor.execute(f"SELECT * FROM carriers WHERE owner=\"{discord}\" LIMIT 1;")
+    r = cursor.fetchall()
+    if len(r) > 0:
+        id = r[0][1]
+        name = r[0][2]
+        owner = r[0][3]
+        cmdr = r[0][4]
+        subs = GetSubscriptionsToCarrier(id)
+        status = GetCarrierStatus(id)
+        vanity = r[0][5]
+
+        cursor.execute
+        r = cursor.fetchall()
+        return CarrierInfo.createData(id, name, owner, cmdr, subs, status, vanity)
+    else:
+        return None
+
+def UpdateCarrierVanity(id, url):
+    conn = sqlite3.connect("carriers.db")
+    cursor = conn.cursor()
+    cursor.execute(f"UPDATE carriers SET vanity=\"{url}\" WHERE id=\"{id}\";")
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+def GetSubscriptionsToCarrier(id):
+    subs = list()
+    conn = sqlite3.connect("carriers.db")
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT * FROM subscriptions WHERE id=\"{id}\";")
+    rows = cursor.fetchall()
+
+    for r in rows:
+        subs.append(r[2])
+
+    return subs
+
+def GetSubscriptionsToChannel(channel):
     subs = list()
     conn = sqlite3.connect("carriers.db")
     cursor = conn.cursor()
@@ -116,7 +149,6 @@ def GetSubscriptions(channel):
         cursor.execute(f"SELECT * FROM carriers WHERE id=\"{id}\";")
         name = cursor.fetchone()[2]
         subs.append(SubInfo.createData(id, name))
-
 
     return subs
 
@@ -132,11 +164,10 @@ def GetCarrierName(id):
         return response[0][0]
     else:
         return None
-
-def GetCarrierID(owner):
+def GetCarrierName(owner):
     conn = sqlite3.connect("carriers.db")
     cursor = conn.cursor()
-    cursor.execute(f"SELECT id FROM carriers WHERE owner=\"{owner}\" LIMIT 1;")
+    cursor.execute(f"SELECT name FROM carriers WHERE owner=\"{owner}\" LIMIT 1;")
     response = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -146,10 +177,10 @@ def GetCarrierID(owner):
     else:
         return None
 
-def GetCarrierName(owner):
+def GetCarrierID(owner):
     conn = sqlite3.connect("carriers.db")
     cursor = conn.cursor()
-    cursor.execute(f"SELECT name FROM carriers WHERE owner=\"{owner}\" LIMIT 1;")
+    cursor.execute(f"SELECT id FROM carriers WHERE owner=\"{owner}\" LIMIT 1;")
     response = cursor.fetchall()
     cursor.close()
     conn.close()
@@ -193,17 +224,30 @@ def SetCarrierStatus(id, loc, obj, res):
         conn.commit()
         conn.close()
 
+def GetCarrierStatus(id):
+    conn = sqlite3.connect("carriers.db")
+    cursor = conn.cursor()
+
+    cursor.execute(f"SELECT * FROM status_updates WHERE id=\"{id}\" LIMIT 1;")
+    response = cursor.fetchall()
+    if len(response) > 0:
+        return StatusInfo.createData(response[0][2], response[0][3], response[0][4])
+    else:
+        return None
+
 class CarrierInfo:
-    def __init__(self, id, name, owner, cmdr, subs):
+    def __init__(self, id, name, owner, cmdr, subs, status, vanity):
         self.id = id
         self.name = name
         self.owner = owner
         self.cmdr = cmdr
         self.subs = subs
+        self.status = status
+        self.vanity = vanity
     
     @classmethod
-    def createData(cls, id, name, owner, cmdr, subs):
-        return cls(id, name, owner, cmdr, subs)
+    def createData(cls, id, name, owner, cmdr, subs, status, vanity):
+        return cls(id, name, owner, cmdr, subs, status, vanity)
 
 class SubInfo:
     def __init__(self, id, name):
@@ -213,6 +257,15 @@ class SubInfo:
     @classmethod
     def createData(cls, id, name):
         return cls(id, name)
+
+class StatusInfo:
+    def __init__(self, loc, obj, res):
+        self.location = loc
+        self.objective = obj
+        self.reserves = res
     
+    @classmethod
+    def createData(cls, loc, obj, res):
+        return cls(loc, obj, res)
 
         

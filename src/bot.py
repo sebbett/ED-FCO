@@ -141,7 +141,7 @@ async def ctx_subscribe(ctx, *args):
 @bot.command(name="sublist")
 async def ctx_sublist(ctx, *args):
     channel = ctx.channel.id
-    subs = botdb.GetSubscriptions(channel)
+    subs = botdb.GetSubscriptionsToChannel(channel)
     newEmbed = discord.Embed(title="Subscriptions for this Channel:", color=EMBED_COLOR)
     content = ""
     for s in subs:
@@ -149,7 +149,8 @@ async def ctx_sublist(ctx, *args):
     newEmbed.description = content
     await ctx.send(embed=newEmbed)
 
-    await ctx.message.delete()
+    if ctx.guild:
+        await ctx.message.delete()
 
 @bot.command(name="unsubscribe")
 async def ctx_unsubscribe(ctx, *args):
@@ -195,40 +196,59 @@ async def ctx_jump(ctx, *args):
 
     arglist = list(args)
     if ctx.guild is None:
-        await ctx.send("What system is your carrier jumping to?")
+        carrier = botdb.GetCarrierByDiscord(ctx.author.id)
         try:
+            await ctx.send("What system is your carrier jumping to?")
             destination_resp = await bot.wait_for('message', timeout=60.0, check=check)
             await ctx.send(f"And what will be the objective once you arrive?")
             objective_resp = await bot.wait_for('message', timeout=60.0, check=check)
-            await ctx.send(f"Copy that, CMDR! I will notify all subscribed parties that your carrier is preparing to jump.\nUse 'cancel' to cancel the jump. Otherwise, I will assume the jump is complete in 20 minutes!")
-            info = botdb.GetCarrier(ctx.author.id)
-            posts = list()
-            for channel_id in info.subs:
-                channel = bot.get_channel(channel_id)
-                if channel:
-                    newEmbed = discord.Embed(title=(f"ALERT: {info.id} \"{info.name}\" has scheduled a hyperspace jump"), description="Please conclude any remaining business in the system prior to departure.", color=EMBED_COLOR)
-                    newEmbed.add_field(name="Destination", value=destination_resp.content, inline=True)
-                    newEmbed.add_field(name="Objective", value=objective_resp.content, inline=True)
-                    newEmbed.set_footer(text=f"This carrier is operated by CMDR {info.cmdr}")
-                    newPost = await channel.send(embed=newEmbed)
-                    posts.append(newPost)
+
+            newEmbed = discord.Embed(title=(f"ALERT: {carrier.id} \"{carrier.name}\" has scheduled a hyperspace jump"), description="Please conclude any remaining business in the system prior to departure.", color=EMBED_COLOR)
+            newEmbed.add_field(name="Destination", value=destination_resp.content, inline=True)
+            newEmbed.add_field(name="Objective", value=objective_resp.content, inline=True)
+            newEmbed.set_image(url=carrier.vanity)
+            newEmbed.set_footer(text=f"This carrier is operated by CMDR {carrier.cmdr}")
+            await ctx.send(embed=newEmbed)
+            await ctx.send(f"Does this look right? y/n")
+
+            confirm_resp = await bot.wait_for('message', timeout=60.0, check=check)
+
+            if confirm_resp.content.lower() == "y":
+                await ctx.send(f"Copy that, CMDR! I will notify all subscribed parties that your carrier is preparing to jump.\nUse 'cancel' to cancel the jump. Otherwise, I will assume the jump is complete in 20 minutes!")
+                
+                posts = list()
+                if carrier.subs:
+                    for sub in carrier.subs:
+                        print(sub)
+                        channel = bot.get_channel(sub)
+                        if channel:
+                            newPost = await channel.send(embed=newEmbed)
+                            posts.append(newPost)
+                        else:
+                            botdb.UnsubscribeAll(sub)
                 else:
-                    botdb.UnsubscribeAll(channel_id)
+                    print("carrier has no subs")
 
             cancel_resp = await bot.wait_for('message', check=check, timeout=1200.0)
             if cancel_resp.content.lower() == "cancel":
                 await ctx.send("Jump has been canceled")
+                newEmbed = discord.Embed(title=(f"ALERT: {carrier.id} \"{carrier.name}\" has canceled a hyperspace jump"), color=16711841)
+                newEmbed.set_image(url=carrier.vanity)
+                newEmbed.set_footer(text=f"This carrier is operated by CMDR {carrier.cmdr}")
+                messages = list()
                 for p in posts:
-                    newEmbed = discord.Embed(title=(f"ALERT: {info.id} \"{info.name}\" has canceled a hyperspace jump"), color=EMBED_COLOR)
-                    newEmbed.set_footer(text=f"This carrier is operated by CMDR {info.cmdr}")
                     newPost = await p.channel.send(embed=newEmbed)
-                    await p.delete()
+                    messages.append(p)
+                
+                if len(messages) > 0:
+                    await channel.delete_messages(messages)
+                    
                 return
 
             await asyncio.sleep(1200.0)
             for p in posts:
                 if p:
-                    newEmbed = discord.Embed(title=(f"ALERT: {info.id} \"{info.name}\" has completed a hyperspace jump"), color=EMBED_COLOR)
+                    newEmbed = discord.Embed(title=(f"ALERT: {carrier.id} \"{carrier.name}\" has completed a hyperspace jump"), color=EMBED_COLOR)
                     newEmbed.add_field(name="Location", value=destination_resp.content, inline=True)
                     newEmbed.add_field(name="Objective", value=objective_resp.content, inline=True)
                     await channel.send(embed=newEmbed)
@@ -262,18 +282,6 @@ async def ctx_clear(ctx):
     await channel.delete_messages(messages)
     await ctx.message.delete()
 
-#@bot.command(name="services")
-async def ctx_name(ctx, *args):
-    arglist = list(args)
-    id = args[0]
-    if CheckCarrierIDPattern(id):
-        name = botdb.GetCarrierName(id)
-        services_flags = botdb.GetCarrierServices(id)
-        for sf in services_flags:
-            print(sf)
-    else:
-        await ctx.send(f"{id} is not a valid Carrier ID")
-
 @bot.command(name="update")
 async def ctx_update(ctx, *args):
     def check(message):
@@ -295,21 +303,22 @@ async def ctx_update(ctx, *args):
             if id:
                 if args[0].lower() == "status":
                     try:
-                        carrier = botdb.GetCarrier(owner)
+                        carrier = botdb.GetCarrierByDiscord(owner)
 
                         await ctx.send("What is your carrier's location?")
-                        location_resp = await bot.wait_for("message", timeout=60.0, check=check)
+                        location_resp = await bot.wait_for("message", timeout=30.0, check=check)
 
                         await ctx.send("What is your carrier's objective?")
-                        objective_resp = await bot.wait_for("message", timeout=60.0, check=check)
+                        objective_resp = await bot.wait_for("message", timeout=30.0, check=check)
 
                         await ctx.send("How many units of tritium remain in the depot?")
-                        fuel_resp = await bot.wait_for("message", timeout=60.0, check=check)
+                        fuel_resp = await bot.wait_for("message", timeout=30.0, check=check)
 
                         newEmbed = discord.Embed(title=f"STATUS: {id} - {name}", color=EMBED_COLOR)
                         newEmbed.add_field(name="Location", value=location_resp.content, inline=True)
                         newEmbed.add_field(name="Objective", value=objective_resp.content, inline=True)
                         newEmbed.add_field(name="Tritium Reserves", value=f"{fuel_resp.content} / 1000  ({CalculateFuelPercent(int(fuel_resp.content))}%)", inline=True)
+                        newEmbed.set_image(url=carrier.vanity)
                         newEmbed.set_footer(text=f"This carrier is operated by CMDR {carrier.cmdr}")
                         await ctx.send(embed = newEmbed)
                         await ctx.send("Does this look correct? y/n")
@@ -332,16 +341,38 @@ async def ctx_update(ctx, *args):
 
                     except asyncio.TimeoutError:
                         await ctx.send("Timed out. Please try again.")
-                
             else:
-                ctx.send("You have not registered a carrier with me. Use `!register` to get started!")
+                await ctx.send("You have not registered a carrier with me. Use `!register` to get started!")
         
         else:
             newEmbed = discord.Embed(title="Available options:", color=EMBED_COLOR)
             newEmbed.add_field(name="status", value="Example: `!update status`\nUpdate subscribed parties on the status of your carrier", inline=False)
             await ctx.send(embed = newEmbed)
 
-
+@bot.command(name="status")
+async def ctx_status(ctx, *args):
+    arglist = list(args)
+    if len(arglist) > 0:
+        if CheckCarrierIDPattern(arglist[0]):
+            id = arglist[0]
+            carrier = botdb.GetCarrierByID(id)
+            if carrier:
+                newEmbed = discord.Embed(title=f"STATUS: {id} - {carrier.name}", color=EMBED_COLOR)
+                newEmbed.add_field(name="Location", value=carrier.status.location, inline=True)
+                newEmbed.add_field(name="Objective", value=carrier.status.objective, inline=True)
+                newEmbed.add_field(name="Tritium Reserves", value=f"{carrier.status.reserves} / 1000  ({CalculateFuelPercent(carrier.status.reserves)}%)", inline=True)
+                newEmbed.set_image(url=carrier.vanity)
+                newEmbed.set_footer(text=f"{id} \"{carrier.name}\" is operated by CMDR {carrier.cmdr}")
+                await ctx.send(embed = newEmbed)
+            else:
+                await ctx.send(f"I'm sorry, but I haven't received any updates regarding {id}")
+        else:
+            await ctx.send(f"{arglist[0]} is not a valid carrier ID")
+    else:
+        await ctx.send("Not enough arguments. Try `!status CARRIER-ID`\nExample: `!status JZH-6XY`")
+    
+    if ctx.guild:
+        await ctx.message.delete()
     
 
 
