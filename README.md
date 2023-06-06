@@ -1,5 +1,5 @@
 # ED-FCO
-Buy me a coffee? https://ko-fi.com/kofisupporter28697
+
 Elite Dangerous Fleet Carrier Operations bot for Discord
 
 This bot addresses an issue I've had with tools that try to achieve more automation. This sacrifices automation
@@ -8,6 +8,8 @@ to allow you to quickly and easily update subscribed parties on the movements of
 Subscriptions to specific carriers allow you to control what carriers you receive updates for and in what channels.
 
 Notify players that your carrier will be jumping and where
+
+Buy me a coffee? https://ko-fi.com/kofisupporter28697
 
 ***To Do:***
 
