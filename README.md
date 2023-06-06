@@ -1,4 +1,5 @@
 # ED-FCO
+Buy me a coffee? https://ko-fi.com/kofisupporter28697
 Elite Dangerous Fleet Carrier Operations bot for Discord
 
 This bot addresses an issue I've had with tools that try to achieve more automation. This sacrifices automation
